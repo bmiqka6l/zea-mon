@@ -1,0 +1,1985 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeabur Monitor</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --card-opacity: 0.3;
+    }
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: url('bg.png') center/cover fixed;
+      position: relative;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.05);
+      z-index: 0;
+    }
+    .container { 
+      max-width: 1400px; 
+      margin: 0 auto; 
+      position: relative;
+      z-index: 1;
+    }
+    h1 {
+      color: white;
+      margin-bottom: 30px;
+      font-size: 28px;
+      font-weight: 700;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .refresh-btn {
+      background: linear-gradient(135deg, #f696c6 0%, #fbb6d8 100%);
+      color: white;
+      border: 2px solid rgba(255,255,255,0.3);
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(246,150,198,0.3);
+    }
+    .refresh-btn:hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .refresh-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .account-card {
+      background: rgba(255,255,255,var(--card-opacity));
+      backdrop-filter: blur(var(--blur-amount)) saturate(var(--saturate-amount));
+      -webkit-backdrop-filter: blur(var(--blur-amount)) saturate(var(--saturate-amount));
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 10px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, var(--shadow-opacity));
+      border: 1px solid rgba(255,255,255,var(--border-opacity));
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, z-index 0s 0.2s;
+      animation: fadeInUp 0.6s ease-out;
+      will-change: transform;
+      transform: translate3d(0, 0, 0);
+      position: relative;
+      z-index: 1;
+    }
+    .account-card:hover {
+      transform: translate3d(0, -8px, 0) scale(1.02);
+      border-color: rgba(255,255,255,0.3);
+      z-index: 10;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease, z-index 0s 0s;
+    }
+    .account-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 10px 8px;
+      margin: -10px -8px 8px -8px;
+      border-radius: 10px;
+      transition: background 0.2s;
+    }
+    .account-header:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .account-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      line-height: 1.2;
+    }
+    .balance {
+      font-size: 20px;
+      font-weight: 700;
+      color: #4CAF50;
+      line-height: 1;
+    }
+    .balance.low { color: #ff9800; }
+    .balance.critical { color: #f44336; }
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+    .project-card {
+      background: rgba(255,255,255,var(--card-opacity));
+      backdrop-filter: blur(var(--blur-amount-small)) saturate(var(--saturate-amount));
+      -webkit-backdrop-filter: blur(var(--blur-amount-small)) saturate(var(--saturate-amount));
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,var(--border-opacity-light));
+      position: relative;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      min-height: auto;
+      height: 100%;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, var(--shadow-opacity));
+    }
+    .project-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -2px;
+      right: -2px;
+      bottom: 0;
+      background: linear-gradient(135deg, #f696c6, #fbb6d8, #fdd7e8);
+      border-radius: 16px;
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .project-card:hover {
+      transform: translateY(-4px) scale(1.02);
+    }
+    .project-card:hover::before {
+      opacity: 1;
+    }
+    .project-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #333;
+      margin-bottom: 5px;
+    }
+    .project-name button:hover {
+      background: rgba(246, 150, 198, 0.4) !important;
+      transform: scale(1.1);
+    }
+    .project-info {
+      font-size: 11px;
+      color: #999;
+      margin-bottom: 6px;
+    }
+    .service-item {
+      background: rgba(255,255,255,var(--service-opacity));
+      backdrop-filter: blur(var(--blur-amount-tiny)) saturate(var(--saturate-amount));
+      -webkit-backdrop-filter: blur(var(--blur-amount-tiny)) saturate(var(--saturate-amount));
+      padding: 8px 10px;
+      margin: 4px 0;
+      border-radius: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 1px solid rgba(255, 255, 255, var(--border-opacity-strong));
+      min-height: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, var(--shadow-opacity-light));
+    }
+    .service-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      transition: left 0.5s;
+    }
+    .service-item:hover {
+      background: rgba(255,255,255,0.45);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.6);
+    }
+    .service-item:hover::before {
+      left: 100%;
+    }
+    .services-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .modal-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .input-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: #f696c6;
+      box-shadow: 0 0 0 3px rgba(246,150,198,0.1);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #f696c6 0%, #fbb6d8 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(246,150,198,0.4);
+    }
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #666;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+    .add-account-btn {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 2px solid rgba(255,255,255,0.3);
+      padding: 10px 20px;
+      border-radius: 25px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .add-account-btn:hover {
+      background: rgba(255,255,255,0.3);
+      transform: translateY(-2px);
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.3);
+      border-radius: 10px;
+      height: 6px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .status {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      position: relative;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .status::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 100%;
+      height: 100%;
+      background: rgba(255,255,255,0.3);
+      transform: translate(-50%, -50%) scale(0);
+      border-radius: 50%;
+      transition: transform 0.6s;
+    }
+    .status:hover::before {
+      transform: translate(-50%, -50%) scale(2);
+    }
+    .status.running { 
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .status.stopped { 
+      background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+      color: white;
+    }
+    .status.suspended { 
+      background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+      color: white;
+    }
+    .status.deploying { 
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+    }
+    .status.paused { 
+      background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
+      color: white;
+    }
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: white;
+      font-size: 16px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .stat-box {
+      padding: 10px;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 加密密钥未设置警告 -->
+    <div v-if="showEncryptionWarning" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 10001;">
+      <div style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); max-width: 600px; width: 95%;">
+        <h2 style="text-align: center; color: #ff6b6b; margin-bottom: 15px;">⚠️ 安全配置必需</h2>
+        <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;">
+          为了保护您的 API Token 安全,请先设置加密密钥
+        </p>
+        
+        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+          <div style="font-weight: 600; color: #856404; margin-bottom: 10px;">📋 设置步骤:</div>
+          <ol style="color: #856404; font-size: 13px; line-height: 1.8; margin: 0; padding-left: 20px;">
+            <li>复制下方生成的密钥</li>
+            <li>在服务器上创建或编辑 <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 4px;">.env</code> 文件</li>
+            <li>添加一行: <code style="background: #f8f9fa; padding: 2px 6px; border-radius: 4px;">ACCOUNTS_SECRET=密钥</code></li>
+            <li>保存文件并重启服务</li>
+          </ol>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 13px; font-weight: 600; color: #666; margin-bottom: 8px;">
+            🔐 为您专属生成的加密密钥 (点击复制):
+          </label>
+          <div style="font-size: 11px; color: #28a745; margin-bottom: 8px; font-weight: 500;">
+            ✨ 此密钥由加密安全随机数生成，全球唯一，请妥善保管
+          </div>
+          <div 
+            @click="copySecret" 
+            style="background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 12px; word-break: break-all; cursor: pointer; transition: all 0.2s;"
+            @mouseover="$event.target.style.borderColor='#f696c6'"
+            @mouseout="$event.target.style.borderColor='#e9ecef'"
+          >
+            {{ suggestedSecret }}
+          </div>
+          <div style="font-size: 11px; color: #999; margin-top: 5px; text-align: center;">点击上方密钥即可复制</div>
+        </div>
+        
+        <div style="background: #f8f9fa; border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+          <div style="font-size: 12px; color: #666; font-family: monospace;">
+            <span style="color: #999;"># .env 文件内容示例</span><br>
+            ACCOUNTS_SECRET={{ suggestedSecret }}
+          </div>
+        </div>
+        
+        <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+          <div style="font-size: 12px; color: #155724;">
+            <strong>💡 提示:</strong> 设置完成后,刷新此页面即可继续使用。密钥用于加密存储您的 API Token,请妥善保管。
+          </div>
+        </div>
+        
+        <button 
+          @click="copySecret"
+          style="width: 100%; padding: 12px; background: #f696c6; color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;"
+        >
+          📋 复制密钥到剪贴板
+        </button>
+      </div>
+    </div>
+    
+    <!-- 首次设置密码界面 -->
+    <div v-if="showSetPasswordModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+      <div style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 400px; width: 90%;">
+        <h2 style="text-align: center; color: #f696c6; margin-bottom: 10px;">🎉 欢迎使用</h2>
+        <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 30px;">请设置管理员密码</p>
+        <div style="margin-bottom: 20px;">
+          <input 
+            v-model="setPassword" 
+            type="password" 
+            placeholder="请输入密码（至少6位）"
+            @keyup.enter="setAdminPassword"
+            style="width: 100%; padding: 12px; border: 2px solid #f696c6; border-radius: 8px; font-size: 14px; outline: none;"
+          />
+        </div>
+        <div style="margin-bottom: 20px;">
+          <input 
+            v-model="setPasswordConfirm" 
+            type="password" 
+            placeholder="请再次输入密码"
+            @keyup.enter="setAdminPassword"
+            style="width: 100%; padding: 12px; border: 2px solid #f696c6; border-radius: 8px; font-size: 14px; outline: none;"
+          />
+        </div>
+        <div v-if="setPasswordError" style="color: #c00; font-size: 13px; margin-bottom: 15px; text-align: center;">
+          {{ setPasswordError }}
+        </div>
+        <button 
+          @click="setAdminPassword"
+          style="width: 100%; padding: 12px; background: #f696c6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;"
+        >
+          设置密码
+        </button>
+      </div>
+    </div>
+    
+    <!-- 登录界面 -->
+    <div v-if="showLoginModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 10000;">
+      <div style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); max-width: 400px; width: 90%;">
+        <h2 style="text-align: center; color: #f696c6; margin-bottom: 30px;">🔐 管理员登录</h2>
+        <div style="margin-bottom: 20px;">
+          <input 
+            v-model="loginPassword" 
+            type="password" 
+            placeholder="请输入管理员密码"
+            @keyup.enter="verifyPassword"
+            style="width: 100%; padding: 12px; border: 2px solid #f696c6; border-radius: 8px; font-size: 14px; outline: none;"
+          />
+        </div>
+        <div v-if="loginError" style="color: #c00; font-size: 13px; margin-bottom: 15px; text-align: center;">
+          {{ loginError }}
+        </div>
+        <button 
+          @click="verifyPassword"
+          style="width: 100%; padding: 12px; background: #f696c6; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;"
+        >
+          登录
+        </button>
+      </div>
+    </div>
+    
+    <div v-if="isAuthenticated" class="container">
+      <h1>🚀 Zeabur Monitor</h1>
+      <div style="background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); padding: 15px 18px; border-radius: 12px; margin-bottom: 15px; font-size: 13px; border: 1px solid rgba(255,255,255,0.3); box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+        <div style="font-weight: 700; margin-bottom: 8px; color: #f696c6;">💡 使用说明</div>
+        <div style="line-height: 1.8; color: #555;">
+          • 数据每90秒自动刷新
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 10px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+        <button class="refresh-btn" @click="fetchData" :disabled="loading">
+          {{ loading ? '加载中...' : '🔄 刷新数据' }}
+        </button>
+        <button class="add-account-btn" @click="showManageModal = true">
+          ⚙️ 管理账号
+        </button>
+        <button class="add-account-btn" @click="clearCache" style="background: rgba(255,100,100,0.3);">
+          🗑️ 清除缓存
+        </button>
+
+        
+        <!-- 透明度控制 -->
+        <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.2); backdrop-filter: blur(10px); padding: 8px 16px; border-radius: 25px; border: 1px solid rgba(255,255,255,0.3);">
+          <span style="color: white; font-size: 13px; font-weight: 600;">透明度</span>
+          <input 
+            type="range" 
+            v-model="opacity" 
+            min="0" 
+            max="100" 
+            style="width: 100px; cursor: pointer;"
+          />
+          <span style="color: white; font-size: 13px; font-weight: 600; min-width: 35px;">{{ opacity }}%</span>
+        </div>
+        
+        <span class="last-update-text" style="color: white; font-size: 14px; margin-left: auto; text-shadow: 0 2px 4px rgba(0,0,0,0.2);"></span>
+          上次更新: {{ lastUpdate }}
+        </span>
+      </div>
+      
+      <!-- 日志模态框 -->
+      <div v-if="showLogsModal" class="modal-overlay" @click.self="showLogsModal = false" style="z-index: 2000;">
+        <div style="background: #1e1e1e; border-radius: 16px; width: 90%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.5);">
+          <div style="padding: 16px 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+            <h2 style="color: #f696c6; font-size: 16px; margin: 0;">📋 {{ logsModalTitle }}</h2>
+            <button @click="showLogsModal = false" style="background: #444; color: #fff; border: none; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-size: 16px; line-height: 1;">×</button>
+          </div>
+          <div style="padding: 10px 20px; background: #264f78; color: #d4d4d4; font-size: 12px; display: flex; gap: 16px; flex-wrap: wrap; flex-shrink: 0;">
+            <span>项目: {{ logsModalInfo.project }}</span>
+            <span>账号: {{ logsModalInfo.account }}</span>
+            <span>日志: {{ logsModalInfo.count }} 条</span>
+            <span>时间: {{ logsModalInfo.time }}</span>
+          </div>
+          <div style="flex: 1; overflow-y: auto; padding: 12px 16px; min-height: 0;">
+            <div v-if="logsLoading" style="text-align: center; padding: 40px; color: #888;">⏳ 正在加载日志...</div>
+            <pre v-else style="background: #252526; padding: 12px; border-radius: 8px; font-family: Consolas, Monaco, monospace; font-size: 12px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; color: #d4d4d4; margin: 0; min-height: 100%;">{{ logsContent || '暂无日志' }}</pre>
+          </div>
+          <div style="padding: 12px 20px; border-top: 1px solid #333; text-align: right; flex-shrink: 0;">
+            <button @click="showLogsModal = false" style="padding: 8px 20px; background: #f696c6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px;">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 账号管理模态框 -->
+      <div v-if="showManageModal" class="modal-overlay" @mousedown.self="showManageModal = false">
+        <div class="modal-content" style="max-width: 700px;">
+          <div class="modal-title">⚙️ 账号管理</div>
+          
+          <!-- 账号列表 -->
+          <div style="margin-bottom: 20px;">
+            <!-- 显示本地管理的账号 -->
+            <div v-for="(account, index) in managedAccounts" :key="'local-' + index" 
+                 style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="flex: 1;">
+                <div style="font-weight: 600; color: #333; margin-bottom: 4px;">{{ account.name }}</div>
+                <div style="font-size: 12px; color: #999;">{{ maskEmail(account.email) || '未知邮箱' }}</div>
+              </div>
+              <button @click="removeAccount(index)" 
+                      style="background: #fee; color: #c00; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;">
+                🗑️ 删除
+              </button>
+            </div>
+            
+            <!-- 显示服务器配置的账号（只读） -->
+            <div v-if="managedAccounts.length === 0 && accounts.length > 0">
+              <div style="font-size: 12px; color: #666; margin-bottom: 10px; padding: 10px; background: #f0f9ff; border-radius: 6px;">
+                💡 以下账号来自服务器配置（.env 文件），无法在此删除
+              </div>
+              <div v-for="account in accounts" :key="'server-' + account.name" 
+                   style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                  <div style="font-weight: 600; color: #333; margin-bottom: 4px;">{{ account.name }}</div>
+                  <div style="font-size: 12px; color: #999;">{{ account.data?.email || account.data?.username || '服务器配置' }}</div>
+                </div>
+                <span style="font-size: 12px; color: #999; padding: 6px 12px; background: #e5e7eb; border-radius: 6px;">
+                  🔒 服务器配置
+                </span>
+              </div>
+            </div>
+            
+            <div v-if="managedAccounts.length === 0 && accounts.length === 0" style="text-align: center; color: #999; padding: 30px;">
+              暂无账号，点击下方按钮添加
+            </div>
+          </div>
+          
+          <!-- 添加新账号表单 -->
+          <div style="border-top: 2px solid #e5e7eb; padding-top: 20px;">
+            <div style="font-weight: 600; margin-bottom: 15px; color: #f696c6;">➕ 添加新账号</div>
+            
+            <div class="input-group">
+              <label class="input-label">账号名称</label>
+              <input 
+                v-model="newAccount.name" 
+                type="text" 
+                class="input-field" 
+                placeholder="例如：我的账号"
+              />
+            </div>
+            
+            <div class="input-group">
+              <label class="input-label">API Token</label>
+              <input 
+                v-model="newAccount.token" 
+                type="password" 
+                class="input-field" 
+                placeholder="sk-xxxxxxxxxxxxxxxx"
+              />
+            </div>
+            
+            <div v-if="addAccountError" style="background: #fee; color: #c00; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">
+              {{ addAccountError }}
+            </div>
+            
+            <div v-if="addAccountSuccess" style="background: #efe; color: #060; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">
+              {{ addAccountSuccess }}
+            </div>
+            
+            <button class="btn-primary" @click="addAccountToList" :disabled="addingAccount">
+              {{ addingAccount ? '验证中...' : '➕ 添加到列表' }}
+            </button>
+          </div>
+          
+          <!-- 批量添加 -->
+          <div style="margin-top: 30px; padding-top: 30px; border-top: 2px dashed #e5e7eb;">
+            <div style="font-weight: 600; color: #333; margin-bottom: 15px; font-size: 16px;">📦 批量添加账号</div>
+            <div style="margin-bottom: 10px; font-size: 13px; color: #666;">
+              每行一个账号，支持格式：<code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">名称:Token</code> 或 <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">名称：Token</code> 或 <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">名称(Token)</code> 或 <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 4px;">名称（Token）</code>
+            </div>
+            <div style="position: relative; min-height: 120px;">
+              <div style="width: 100%; min-height: 120px; padding: 12px; border: 2px solid transparent; border-radius: 8px; font-size: 13px; font-family: monospace; white-space: pre-wrap; word-break: break-all; pointer-events: none; color: #333; line-height: 1.5;">{{ maskedBatchAccounts }}</div>
+              <textarea
+                v-model="batchAccounts"
+                @input="updateBatchDisplay"
+                placeholder="每行一个账号，格式：账号名称:API_Token"
+                style="width: 100%; min-height: 120px; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: monospace; resize: vertical; outline: none; position: absolute; top: 0; left: 0; color: transparent; caret-color: black; background: transparent; line-height: 1.5;"
+              ></textarea>
+            </div>
+            <div v-if="batchAddError" style="color: #c00; font-size: 13px; margin-top: 10px;">
+              {{ batchAddError }}
+            </div>
+            <div v-if="batchAddSuccess" style="color: #0a0; font-size: 13px; margin-top: 10px;">
+              {{ batchAddSuccess }}
+            </div>
+            <button 
+              class="btn-primary" 
+              @click="batchAddAccounts" 
+              :disabled="addingAccount"
+              style="margin-top: 15px;"
+            >
+              {{ addingAccount ? '添加中...' : '📦 批量添加' }}
+            </button>
+          </div>
+          
+          <button class="btn-secondary" @click="closeManageModal">
+            关闭
+          </button>
+        </div>
+      </div>
+      
+      <!-- 旧的添加账号模态框（保留兼容） -->
+      <div v-if="showAddModal" class="modal-overlay" @mousedown.self="showAddModal = false">
+        <div class="modal-content">
+          <div class="modal-title">➕ 添加 Zeabur 账号</div>
+          
+          <div class="input-group">
+            <label class="input-label">账号名称</label>
+            <input 
+              v-model="newAccount.name" 
+              type="text" 
+              class="input-field" 
+              placeholder="例如：我的账号"
+            />
+          </div>
+          
+          <div class="input-group">
+            <label class="input-label">API Token</label>
+            <input 
+              v-model="newAccount.token" 
+              type="password" 
+              class="input-field" 
+              placeholder="sk-xxxxxxxxxxxxxxxx"
+            />
+            <div style="font-size: 12px; color: #999; margin-top: 6px;">
+              在 Zeabur 控制台的设置中创建 API Token
+            </div>
+          </div>
+          
+          <div v-if="addAccountError" style="background: #fee; color: #c00; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">
+            {{ addAccountError }}
+          </div>
+          
+          <div v-if="addAccountSuccess" style="background: #efe; color: #060; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">
+            {{ addAccountSuccess }}
+          </div>
+          
+          <button class="btn-primary" @click="addAccount" :disabled="addingAccount">
+            {{ addingAccount ? '验证中...' : '添加账号' }}
+          </button>
+          
+          <button class="btn-secondary" @click="closeAddModal">
+            取消
+          </button>
+        </div>
+      </div>
+      
+      <div v-if="accounts.length > 0" class="account-card" :style="{
+        background: isSummaryWhiteMode ? 'rgba(255, 255, 255, 0.95)' : 'rgba(246, 150, 198, 0.3)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        color: isSummaryWhiteMode ? '#333' : 'white',
+        border: isSummaryWhiteMode ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.3)',
+        transition: 'all 0.3s ease'
+      }">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="font-size: 20px; font-weight: 700;">✨ 总览</h3>
+          <button @click="toggleSummaryBackground" style="padding: 6px 12px; background: rgba(0,0,0,0.1); border: 1px solid rgba(0,0,0,0.2); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.2s;" :style="{ color: isSummaryWhiteMode ? '#666' : 'white' }">
+            {{ isSummaryWhiteMode ? '🎨 粉底' : '⬜ 白底' }}
+          </button>
+        </div>
+        <div class="stats">
+          <div class="stat-box" :style="{ background: 'transparent', border: isSummaryWhiteMode ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.2)' }">
+            <div class="stat-label" :style="{ color: isSummaryWhiteMode ? '#666' : 'rgba(255,255,255,0.9)' }">账号数</div>
+            <div class="stat-value" style="color: #4ade80;">{{ accounts.length }}</div>
+          </div>
+          <div class="stat-box" :style="{ background: 'transparent', border: isSummaryWhiteMode ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.2)' }">
+            <div class="stat-label" :style="{ color: isSummaryWhiteMode ? '#666' : 'rgba(255,255,255,0.9)' }">项目总数</div>
+            <div class="stat-value" style="color: #4ade80;">{{ totalProjects }}</div>
+          </div>
+          <div class="stat-box" :style="{ background: 'transparent', border: isSummaryWhiteMode ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.2)' }">
+            <div class="stat-label" :style="{ color: isSummaryWhiteMode ? '#666' : 'rgba(255,255,255,0.9)' }">服务总数</div>
+            <div class="stat-value" style="color: #4ade80;">{{ totalServices }}</div>
+          </div>
+          <div class="stat-box" :style="{ background: 'transparent', border: isSummaryWhiteMode ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.2)' }">
+            <div class="stat-label" :style="{ color: isSummaryWhiteMode ? '#666' : 'rgba(255,255,255,0.9)' }">运行中</div>
+            <div class="stat-value" style="color: #4ade80;">{{ runningServices }}</div>
+          </div>
+          <div class="stat-box" :style="{ background: 'transparent', border: isSummaryWhiteMode ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.2)' }">
+            <div class="stat-label" :style="{ color: isSummaryWhiteMode ? '#666' : 'rgba(255,255,255,0.9)' }">总费用</div>
+            <div class="stat-value" style="color: #ef4444;">${{ totalCost.toFixed(2) }}</div>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="loading && accounts.length === 0" class="loading">
+        ⚡ 正在加载数据...
+      </div>
+      
+      <div v-for="account in accounts" :key="account.name" class="account-card">
+        <div class="account-header" @click="toggleAccount(account.name)" style="cursor: pointer;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 20px; transition: transform 0.3s;" :style="{ transform: isAccountExpanded(account.name) ? 'rotate(90deg)' : 'rotate(0deg)' }">
+                ▶
+              </span>
+              <div>
+                <div class="account-name">{{ account.name }}</div>
+                <div v-if="account.data" style="color: #666; font-size: 14px;">
+                  {{ maskEmail(account.data.email) || account.data.username }}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+            <div v-if="account.data" class="balance" :class="getBalanceClass(account.data.credit)">
+              ${{ (account.data.credit / 100).toFixed(2) }}
+            </div>
+            <div v-if="account.aihub && account.aihub.balance"
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 8px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+              🤖 AI Hub: ${{ (account.aihub.balance / 100000).toFixed(2) }}
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="account.error" class="error">
+          ❌ 错误: {{ account.error }}
+        </div>
+        
+        <div v-if="account.projects && isAccountExpanded(account.name)" class="projects-grid">
+          <div v-for="project in account.projects" :key="project._id" class="project-card">
+            <!-- 项目头部 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <div class="project-name" style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
+                <span v-if="!project.isEditing" style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">📦 {{ project.name }}</span>
+                <input 
+                  v-else
+                  v-model="project.editingName"
+                  @keyup.enter="saveProjectName(account, project)"
+                  @keyup.esc="cancelEditProjectName(project)"
+                  @blur="saveProjectName(account, project)"
+                  style="flex: 1; padding: 2px 6px; border: 2px solid #f696c6; border-radius: 4px; font-size: 13px; font-weight: 600; outline: none;"
+                  ref="projectNameInput"
+                />
+                <button 
+                  v-if="!project.isEditing"
+                  @click="startEditProjectName(project)"
+                  style="padding: 2px 6px; background: rgba(246, 150, 198, 0.2); border: 1px solid rgba(246, 150, 198, 0.4); border-radius: 4px; cursor: pointer; transition: all 0.2s; font-size: 12px;"
+                  title="重命名"
+                >
+                  ✏️
+                </button>
+              </div>
+              <div style="font-size: 16px; font-weight: 700; color: #2196F3; white-space: nowrap;">
+                ${{ formatCost(project.cost) }}
+              </div>
+            </div>
+            
+            <!-- 项目信息 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: #999;">
+              <span>📍 {{ project.region }}</span>
+              <span>本月用量</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 6px; font-size: 11px; color: #666;">
+              <span style="display: flex; align-items: center; gap: 4px;">
+                <span>🔧</span>
+                <span style="font-weight: 600;">{{ project.services.length }}</span>
+                <span>个服务</span>
+              </span>
+              <span style="display: flex; align-items: center; gap: 4px;">
+                <span>✅</span>
+                <span style="font-weight: 600;">{{ project.services.filter(s => s.status === 'RUNNING').length }}</span>
+                <span>运行中</span>
+              </span>
+              <span style="display: flex; align-items: center; gap: 4px;">
+                <span>⏸️</span>
+                <span style="font-weight: 600;">{{ project.services.filter(s => s.status === 'SUSPENDED').length }}</span>
+                <span>已暂停</span>
+              </span>
+            </div>
+            <div class="services-container">
+            <div v-for="service in project.services" :key="service._id" class="service-item">
+              <!-- 服务名称 -->
+              <div style="font-weight: 600; font-size: 12px; color: #333; margin-bottom: 6px;">
+                {{ service.name }}
+              </div>
+              
+              <!-- 操作按钮 -->
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                <span :class="['status', service.status.toLowerCase()]">
+                  {{ service.status === 'RUNNING' ? '运行中' : service.status === 'SUSPENDED' ? '已暂停' : service.status }}
+                </span>
+                <button v-if="service.status === 'RUNNING'" 
+                        @click="pauseService(account, project, service)" 
+                        style="padding: 4px 8px; background: #ff9500; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 600;">
+                  ⏸️ 暂停
+                </button>
+                <button @click="restartService(account, project, service)" 
+                        style="padding: 4px 8px; background: #007aff; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 600;">
+                  {{ service.status === 'SUSPENDED' ? '▶️ 启动' : '🔄 重启' }}
+                </button>
+                <button @click="showServiceLogs(account, project, service)" 
+                        style="padding: 4px 8px; background: #af52de; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 10px; font-weight: 600;">
+                  📋 日志
+                </button>
+              </div>
+            </div>
+            <div v-if="project.services.length === 0" style="color: #999; font-size: 14px; text-align: center; padding: 20px;">
+              暂无服务
+            </div>
+            </div>
+            
+            <!-- 域名 -->
+            <div v-if="getProjectDomains(project).length > 0" style="margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.2);">
+              <a v-for="domainInfo in getProjectDomains(project)" 
+                 :key="domainInfo.domain" 
+                 :href="'https://' + domainInfo.domain" 
+                 target="_blank"
+                 style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-size: 10px; font-weight: 600; margin-bottom: 4px; transition: all 0.2s;"
+                 @mouseover="$event.target.style.transform = 'translateY(-1px)'"
+                 @mouseout="$event.target.style.transform = 'translateY(0)'">
+                <span style="font-size: 12px;">🌐</span>
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">{{ domainInfo.domain }}</span>
+                <span v-if="domainInfo.isGenerated" style="background: rgba(255,255,255,0.25); padding: 1px 4px; border-radius: 4px; font-size: 9px;">自动</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div v-if="!loading && accounts.length === 0" class="error">
+        未配置账号或无法获取数据。请检查 .env 配置文件。
+      </div>
+      
+      <!-- 项目地址和版本信息 -->
+      <div style="text-align: center; padding: 30px 20px;">
+        <div style="display: inline-block; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(246,150,198,0.3); font-size: 13px; margin-bottom: 15px;">
+          <span style="color: #666;">⭐ 项目地址：</span>
+          <a href="https://github.com/jiujiu532/zeabur-monitor" target="_blank" style="color: #f696c6; text-decoration: none; font-weight: 600; margin-left: 5px;">
+            github.com/jiujiu532/zeabur-monitor
+          </a>
+        </div>
+        
+        <!-- 版本信息 -->
+        <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+          <div style="background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(246,150,198,0.2); min-width: 120px; text-align: center;">
+            <div style="font-size: 18px; font-weight: 700; color: #f696c6; margin-bottom: 4px;">{{ currentVersion }}</div>
+            <div style="font-size: 11px; color: #999;">当前版本</div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(246,150,198,0.2); min-width: 120px; text-align: center;">
+            <div style="font-size: 18px; font-weight: 700; color: #f696c6; margin-bottom: 4px;">{{ latestVersion }}</div>
+            <div style="font-size: 11px; color: #999;">最新版本</div>
+          </div>
+          
+          <div style="background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(246,150,198,0.2); min-width: 120px; text-align: center;">
+            <div v-if="versionLoading" style="font-size: 14px; color: #999; margin-bottom: 4px;">⏳ 检测中</div>
+            <div v-else-if="isNewVersionAvailable()" style="font-size: 14px; font-weight: 600; color: #ff9800; margin-bottom: 4px;">🔔 需要更新</div>
+            <div v-else style="font-size: 14px; font-weight: 600; color: #4ade80; margin-bottom: 4px;">✓ 已是最新</div>
+            <div style="font-size: 11px; color: #999;">更新状态</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+    
+    createApp({
+      data() {
+        return {
+          accounts: [],
+          loading: false,
+          lastUpdate: '--:--:--',
+          showAddModal: false,
+          showManageModal: false,
+          managedAccounts: [],
+          projectCosts: {},
+          newAccount: {
+            name: '',
+            token: '',
+            balance: ''
+          },
+          addingAccount: false,
+          addAccountError: '',
+          addAccountSuccess: '',
+          opacity: 39,
+          isSummaryWhiteMode: true,
+          expandedAccounts: {},
+          // 加密密钥检查
+          showEncryptionWarning: false,
+          suggestedSecret: '',
+          // 密码验证
+          isAuthenticated: false,
+          showLoginModal: false,
+          showSetPasswordModal: false,
+          loginPassword: '',
+          loginError: '',
+          setPassword: '',
+          setPasswordConfirm: '',
+          setPasswordError: '',
+          // 批量添加
+          batchAccounts: '',
+          maskedBatchAccounts: '',
+          batchAddError: '',
+          batchAddSuccess: '',
+          // 日志模态框
+          showLogsModal: false,
+          logsModalTitle: '',
+          logsModalInfo: {},
+          logsContent: '',
+          logsLoading: false,
+          // 版本信息
+          currentVersion: '加载中...',
+          latestVersion: '加载中...',
+          versionLoading: true
+        };
+      },
+      async mounted() {
+        // 加载总览卡片背景模式设置
+        const savedMode = localStorage.getItem('summary_background_mode');
+        this.isSummaryWhiteMode = savedMode === null ? true : savedMode === 'white';
+        
+        // 获取版本信息（无论是否登录都获取）
+        this.fetchVersionInfo();
+        
+        // 首先检查加密密钥是否已设置
+        try {
+          const encryptionResponse = await fetch('/api/check-encryption');
+          const encryptionData = await encryptionResponse.json();
+          
+          if (!encryptionData.isConfigured) {
+            // 未设置加密密钥,显示警告
+            this.suggestedSecret = encryptionData.suggestedSecret;
+            this.showEncryptionWarning = true;
+            return; // 阻止继续,必须先设置密钥
+          }
+        } catch (error) {
+          console.error('检查加密状态失败:', error);
+        }
+        
+        // 检查服务器是否已设置密码
+        const hasPasswordResponse = await fetch('/api/check-password');
+        const { hasPassword } = await hasPasswordResponse.json();
+        
+        if (!hasPassword) {
+          // 首次使用，显示设置密码界面
+          this.showSetPasswordModal = true;
+          return;
+        }
+        
+        // 检查是否有有效的session token
+        const sessionToken = localStorage.getItem('session_token');
+        
+        if (sessionToken) {
+          // 尝试使用session token验证
+          try {
+            const response = await fetch('/api/accounts', {
+              headers: { 'x-session-token': sessionToken }
+            });
+            
+            if (response.ok) {
+              // Session有效，自动登录
+              this.isAuthenticated = true;
+              await this.loadManagedAccounts();
+              this.loadProjectCosts();
+              this.fetchData();
+              
+              // 启动自动刷新
+              this.refreshInterval = setInterval(() => this.fetchData(), 90000);
+              
+              // 加载透明度设置
+              const savedOpacity = localStorage.getItem('card_opacity');
+              if (savedOpacity) {
+                this.opacity = parseInt(savedOpacity);
+                this.updateOpacity();
+              }
+              return;
+            } else {
+              // Session无效，清除token
+              localStorage.removeItem('session_token');
+            }
+          } catch (error) {
+            console.log('Session验证失败:', error.message);
+            localStorage.removeItem('session_token');
+          }
+        }
+        
+        // 需要输入密码
+        this.showLoginModal = true;
+      },
+      watch: {
+        opacity(newVal) {
+          localStorage.setItem('card_opacity', newVal);
+          this.updateOpacity();
+        }
+      },
+      beforeUnmount() {
+        // 清理定时器，防止内存泄漏
+        if (this.refreshInterval) {
+          clearInterval(this.refreshInterval);
+        }
+      },
+      computed: {
+        totalProjects() {
+          let total = 0;
+          for (const acc of this.accounts) {
+            if (acc.projects) total += acc.projects.length;
+          }
+          return total;
+        },
+        totalServices() {
+          let total = 0;
+          for (const acc of this.accounts) {
+            if (acc.projects) {
+              for (const p of acc.projects) {
+                if (p.services) total += p.services.length;
+              }
+            }
+          }
+          return total;
+        },
+        runningServices() {
+          let total = 0;
+          for (const acc of this.accounts) {
+            if (acc.projects) {
+              for (const p of acc.projects) {
+                if (p.services) {
+                  for (const s of p.services) {
+                    if (s.status === 'RUNNING') total++;
+                  }
+                }
+              }
+            }
+          }
+          return total;
+        },
+        totalCost() {
+          let total = 0;
+          for (const acc of this.accounts) {
+            if (acc.projects) {
+              for (const p of acc.projects) {
+                total += p.cost || 0;
+              }
+            }
+          }
+          return total;
+        }
+      },
+      methods: {
+        // 设置密码（首次）
+        async setAdminPassword() {
+          this.setPasswordError = '';
+          
+          if (!this.setPassword || this.setPassword.length < 6) {
+            this.setPasswordError = '密码长度至少6位';
+            return;
+          }
+          
+          if (this.setPassword !== this.setPasswordConfirm) {
+            this.setPasswordError = '两次输入的密码不一致';
+            return;
+          }
+          
+          try {
+            const response = await fetch('/api/set-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: this.setPassword })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+              // 设置成功，需要登录获取session token
+              this.loginPassword = this.setPassword;
+              this.showSetPasswordModal = false;
+              
+              // 自动验证密码获取session token
+              await this.verifyPassword();
+              
+              // 加载透明度设置
+              const savedOpacity = localStorage.getItem('card_opacity');
+              if (savedOpacity) {
+                this.opacity = parseInt(savedOpacity);
+                this.updateOpacity();
+              }
+            } else {
+              this.setPasswordError = result.error || '设置失败';
+            }
+          } catch (error) {
+            this.setPasswordError = '设置失败: ' + error.message;
+          }
+        },
+        // 验证密码
+        async verifyPassword() {
+          this.loginError = '';
+          try {
+            const response = await fetch('/api/verify-password', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: this.loginPassword })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+              this.isAuthenticated = true;
+              this.showLoginModal = false;
+              
+              // 保存session token (2天有效期,跨浏览器)
+              localStorage.setItem('session_token', result.sessionToken);
+              
+              await this.loadManagedAccounts();
+              this.loadProjectCosts();
+              this.fetchData();
+              
+              // 启动自动刷新
+              this.refreshInterval = setInterval(() => this.fetchData(), 90000);
+              
+              // 加载透明度设置
+              const savedOpacity = localStorage.getItem('card_opacity');
+              if (savedOpacity) {
+                this.opacity = parseInt(savedOpacity);
+                this.updateOpacity();
+              }
+            } else {
+              this.loginError = '密码错误，请重试';
+            }
+          } catch (error) {
+            this.loginError = '验证失败: ' + error.message;
+          }
+        },
+        // 邮箱打码
+        maskEmail(email) {
+          if (!email || !email.includes('@')) return email;
+          const [local, domain] = email.split('@');
+          if (local.length <= 4) return email;
+          const masked = local.substring(0, 2) + 'x'.repeat(local.length - 4) + local.substring(local.length - 2);
+          return masked + '@' + domain;
+        },
+        // 获取请求头（包含session token）
+        getAuthHeaders() {
+          const sessionToken = localStorage.getItem('session_token');
+          return {
+            'Content-Type': 'application/json',
+            'x-session-token': sessionToken
+          };
+        },
+        // 处理401错误，自动弹出登录框
+        handleUnauthorized() {
+          console.log('⚠️ Session已过期，需要重新登录');
+          localStorage.removeItem('session_token');
+          this.isAuthenticated = false;
+          this.showLoginModal = true;
+        },
+        async loadManagedAccounts() {
+          try {
+            // 从服务器加载账号
+            const response = await fetch('/api/server-accounts', {
+              headers: this.getAuthHeaders()
+            });
+            
+            // 检查401错误
+            if (response.status === 401) {
+              this.handleUnauthorized();
+              return;
+            }
+            
+            const accounts = await response.json();
+            if (accounts && accounts.length > 0) {
+              this.managedAccounts = accounts;
+              console.log(`📋 从服务器加载 ${accounts.length} 个账号`);
+            }
+          } catch (error) {
+            console.log('⚠️ 从服务器加载账号失败:', error.message);
+          }
+        },
+        async createServerAccount(account) {
+          const response = await fetch('/api/server-accounts', {
+            method: 'POST',
+            headers: this.getAuthHeaders(),
+            body: JSON.stringify(account)
+          });
+          
+          if (response.status === 401) {
+            this.handleUnauthorized();
+            return null;
+          }
+          
+          const result = await response.json();
+          if (!response.ok || !result.success) {
+            throw new Error(result.error || '保存账号失败');
+          }
+          
+          return result.account;
+        },
+        loadProjectCosts() {
+          const saved = localStorage.getItem('zeabur_project_costs');
+          if (saved) {
+            this.projectCosts = JSON.parse(saved);
+          }
+        },
+
+        async fetchData() {
+          this.loading = true;
+          try {
+            // 如果有账号，使用账号
+            if (this.managedAccounts.length > 0) {
+              // 清除账号中的手动余额，让服务器使用 API 真实数据
+              const accountsWithoutManualBalance = this.managedAccounts.map(acc => ({
+                ...acc,
+                balance: null // 不发送手动余额
+              }));
+              
+              const [accountsRes, projectsRes] = await Promise.all([
+                fetch('/api/temp-accounts', {
+                  method: 'POST',
+                  headers: this.getAuthHeaders(),
+                  body: JSON.stringify({ accounts: accountsWithoutManualBalance })
+                }).then(r => r.json()),
+                fetch('/api/temp-projects', {
+                  method: 'POST',
+                  headers: this.getAuthHeaders(),
+                  body: JSON.stringify({ 
+                    accounts: accountsWithoutManualBalance,
+                    projectCosts: {} // 不发送手动费用，让服务器尝试从 API 获取
+                  })
+                }).then(r => r.json())
+              ]);
+              
+              console.log('API 返回的账号数据:', accountsRes);
+              console.log('API 返回的项目数据:', projectsRes);
+              
+              this.accounts = accountsRes.map((account, index) => {
+                const projectData = projectsRes[index];
+                console.log(`账号 ${account.name} 余额: ${account.data?.credit} (${account.data?.credit/100} USD)`);
+                return {
+                  ...account,
+                  projects: projectData.projects || []
+                };
+              });
+            } else {
+              // 否则使用服务器配置的账号
+              const [accountsRes, projectsRes] = await Promise.all([
+                fetch('/api/accounts').then(r => r.json()),
+                fetch('/api/projects').then(r => r.json())
+              ]);
+              
+              this.accounts = accountsRes.map((account, index) => {
+                const projectData = projectsRes[index];
+                return {
+                  ...account,
+                  projects: projectData.projects || []
+                };
+              });
+            }
+          } catch (error) {
+            console.error('获取数据失败:', error);
+            alert('获取数据失败: ' + error.message);
+          } finally {
+            this.loading = false;
+            this.lastUpdate = new Date().toLocaleTimeString('zh-CN');
+          }
+        },
+        getBalanceClass(credit) {
+          const balance = credit / 100;
+          if (balance < 10) return 'critical';
+          if (balance < 50) return 'low';
+          return '';
+        },
+        async batchAddAccounts() {
+          this.batchAddError = '';
+          this.batchAddSuccess = '';
+          
+          if (!this.batchAccounts.trim()) {
+            this.batchAddError = '请输入账号信息';
+            return;
+          }
+          
+          const lines = this.batchAccounts.trim().split('\n');
+          const accounts = [];
+          
+          // 解析每一行
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            let name = '';
+            let token = '';
+            
+            // 尝试匹配括号格式：名称(token) 或 名称（token）
+            const bracketMatch = line.match(/^(.+?)[（(](.+?)[）)]$/);
+            if (bracketMatch) {
+              name = bracketMatch[1].trim();
+              token = bracketMatch[2].trim();
+            } else if (line.includes(':')) {
+              // 冒号格式：名称:token
+              const parts = line.split(':');
+              name = parts[0].trim();
+              token = parts.slice(1).join(':').trim();
+            } else if (line.includes('：')) {
+              // 中文冒号格式：名称：token
+              const parts = line.split('：');
+              name = parts[0].trim();
+              token = parts.slice(1).join('：').trim();
+            } else {
+              this.batchAddError = `第 ${i + 1} 行格式错误，支持的格式：名称:Token 或 名称：Token 或 名称(Token) 或 名称（Token）`;
+              return;
+            }
+            
+            if (!name || !token) {
+              this.batchAddError = `第 ${i + 1} 行：账号名称或 Token 不能为空`;
+              return;
+            }
+            
+            accounts.push({ name, token });
+          }
+          
+          if (accounts.length === 0) {
+            this.batchAddError = '没有有效的账号信息';
+            return;
+          }
+          
+          this.addingAccount = true;
+          let successCount = 0;
+          let failedAccounts = [];
+          
+          // 逐个验证并添加
+          for (const account of accounts) {
+            try {
+              const response = await fetch('/api/validate-account', {
+                method: 'POST',
+                headers: this.getAuthHeaders(),
+                body: JSON.stringify({
+                  accountName: account.name,
+                  apiToken: account.token
+                })
+              });
+              
+              const data = await response.json();
+              
+              if (response.ok) {
+                // 检查是否已存在
+                const exists = this.managedAccounts.some(acc => acc.name === account.name);
+                if (!exists) {
+                  try {
+                    const saved = await this.createServerAccount({
+                      name: account.name,
+                      token: account.token
+                    });
+                    
+                    if (saved) {
+                      this.managedAccounts.push({
+                        id: saved.id,
+                        name: account.name,
+                        token: account.token,
+                        email: data.userData.email,
+                        username: data.userData.username
+                      });
+                      successCount++;
+                    }
+                  } catch (error) {
+                    failedAccounts.push(`${account.name}（保存失败）`);
+                  }
+                } else {
+                  failedAccounts.push(`${account.name}（已存在）`);
+                }
+              } else {
+                failedAccounts.push(`${account.name}（${data.error || '验证失败'}）`);
+              }
+            } catch (error) {
+              failedAccounts.push(`${account.name}（网络错误）`);
+            }
+          }
+          
+          this.addingAccount = false;
+          
+          if (successCount > 0) {
+            this.fetchData();
+          }
+          
+          // 显示结果
+          if (successCount > 0 && failedAccounts.length === 0) {
+            this.batchAddSuccess = `✅ 成功添加 ${successCount} 个账号`;
+            this.batchAccounts = '';
+            this.maskedBatchAccounts = '';
+          } else if (successCount > 0) {
+            this.batchAddSuccess = `✅ 成功添加 ${successCount} 个账号`;
+            this.batchAddError = `❌ 失败: ${failedAccounts.join(', ')}`;
+          } else {
+            this.batchAddError = `❌ 全部失败: ${failedAccounts.join(', ')}`;
+          }
+          
+          // 3秒后清除提示
+          setTimeout(() => {
+            this.batchAddSuccess = '';
+            if (successCount > 0 && failedAccounts.length === 0) {
+              this.batchAddError = '';
+            }
+          }, 3000);
+        },
+        async addAccountToList() {
+          if (!this.newAccount.name || !this.newAccount.token) {
+            this.addAccountError = '请填写账号名称和 API Token';
+            return;
+          }
+          
+          this.addingAccount = true;
+          this.addAccountError = '';
+          this.addAccountSuccess = '';
+          
+          try {
+            const response = await fetch('/api/validate-account', {
+              method: 'POST',
+              headers: this.getAuthHeaders(),
+              body: JSON.stringify({
+                accountName: this.newAccount.name,
+                apiToken: this.newAccount.token
+              })
+            });
+            
+            // 检查401错误
+            if (response.status === 401) {
+              this.handleUnauthorized();
+              return;
+            }
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+              const saved = await this.createServerAccount({
+                name: this.newAccount.name,
+                token: this.newAccount.token
+              });
+              
+              if (saved) {
+                this.managedAccounts.push({
+                  id: saved.id,
+                  name: this.newAccount.name,
+                  token: this.newAccount.token,
+                  balance: this.newAccount.balance ? parseFloat(this.newAccount.balance) : null,
+                  email: data.userData.email,
+                  username: data.userData.username
+                });
+              }
+              this.addAccountSuccess = `✅ 账号添加成功！用户: ${data.userData.username}`;
+              
+              // 清空表单
+              this.newAccount = { name: '', token: '', balance: '' };
+              
+              // 刷新数据
+              setTimeout(() => {
+                this.fetchData();
+                this.addAccountSuccess = '';
+              }, 1500);
+            } else {
+              this.addAccountError = data.error || '添加失败';
+            }
+          } catch (error) {
+            this.addAccountError = '网络错误: ' + error.message;
+          } finally {
+            this.addingAccount = false;
+          }
+        },
+        async removeAccount(index) {
+          const account = this.managedAccounts[index];
+          if (!account) return;
+          
+          if (!confirm(`确定要删除账号 "${account.name}" 吗？`)) return;
+          
+          try {
+            if (account.id) {
+              const response = await fetch(`/api/server-accounts/${account.id}`, {
+                method: 'DELETE',
+                headers: this.getAuthHeaders()
+              });
+              
+              if (response.status === 401) {
+                this.handleUnauthorized();
+                return;
+              }
+              
+              const result = await response.json();
+              if (!result.success) {
+                alert('删除失败: ' + (result.error || '未知错误'));
+                return;
+              }
+            }
+            
+            this.managedAccounts.splice(index, 1);
+            this.fetchData();
+            alert('账号已删除');
+          } catch (error) {
+            alert('删除失败: ' + error.message);
+          }
+        },
+        closeAddModal() {
+          this.showAddModal = false;
+          this.newAccount = { name: '', token: '', balance: '' };
+          this.addAccountError = '';
+          this.addAccountSuccess = '';
+        },
+        closeManageModal() {
+          this.showManageModal = false;
+          this.newAccount = { name: '', token: '', balance: '' };
+          this.addAccountError = '';
+          this.addAccountSuccess = '';
+        },
+        updateOpacity() {
+          const opacity = this.opacity / 100;
+          const root = document.documentElement;
+          if (!root) return; // 防止 DOM 未加载
+          
+          // 设置所有相关的CSS变量
+          root.style.setProperty('--card-opacity', opacity);
+          root.style.setProperty('--service-opacity', Math.min(opacity + 0.05, 1));
+          root.style.setProperty('--blur-amount', `${20 * opacity}px`);
+          root.style.setProperty('--blur-amount-small', `${15 * opacity}px`);
+          root.style.setProperty('--blur-amount-tiny', `${10 * opacity}px`);
+          root.style.setProperty('--saturate-amount', `${100 + 80 * opacity}%`);
+          root.style.setProperty('--shadow-opacity', 0.1 * opacity);
+          root.style.setProperty('--shadow-opacity-light', 0.05 * opacity);
+          root.style.setProperty('--border-opacity', 0.3 * opacity);
+          root.style.setProperty('--border-opacity-light', 0.4 * opacity);
+          root.style.setProperty('--border-opacity-strong', 0.5 * opacity);
+        },
+        clearCache() {
+          if (confirm('确定要清除所有缓存数据吗？这将删除所有本地保存的账号、余额和费用数据。')) {
+            // 清除所有本地数据
+            this.managedAccounts = [];
+            this.projectCosts = {};
+            localStorage.removeItem('zeabur_accounts');
+            localStorage.removeItem('zeabur_project_costs');
+            
+            alert('缓存已清除！正在重新获取数据...');
+            this.fetchData();
+          }
+        },
+        toggleSummaryBackground() {
+          this.isSummaryWhiteMode = !this.isSummaryWhiteMode;
+          localStorage.setItem('summary_background_mode', this.isSummaryWhiteMode ? 'white' : 'pink');
+        },
+        toggleAccount(accountName) {
+          this.expandedAccounts[accountName] = !this.expandedAccounts[accountName];
+        },
+        isAccountExpanded(accountName) {
+          return this.expandedAccounts[accountName] !== false;
+        },
+        // 暂停服务
+        async pauseService(account, project, service) {
+          if (!confirm(`确定要暂停服务"${service.name}"吗？`)) return;
+          
+          try {
+            // 获取环境 ID
+            const environmentId = project.environments && project.environments[0] ? project.environments[0]._id : null;
+            if (!environmentId) {
+              alert('❌ 无法获取环境 ID，请刷新页面后重试');
+              return;
+            }
+            
+            // 获取账号 token
+            const accountData = this.managedAccounts.find(acc => acc.name === account.name);
+            if (!accountData || !accountData.token) {
+              alert('❌ 无法获取账号 token，请重新添加账号');
+              return;
+            }
+            
+            const response = await fetch('/api/service/pause', {
+              method: 'POST',
+              headers: this.getAuthHeaders(),
+              body: JSON.stringify({ 
+                token: accountData.token, 
+                serviceId: service._id,
+                environmentId: environmentId
+              })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+              alert('✅ 服务已暂停');
+              this.fetchData();
+            } else {
+              alert('❌ 暂停失败: ' + (result.error || JSON.stringify(result)));
+            }
+          } catch (error) {
+            alert('❌ 操作失败: ' + error.message);
+          }
+        },
+        // 重启服务
+        async restartService(account, project, service) {
+          const action = service.status === 'SUSPENDED' ? '启动' : '重启';
+          if (!confirm(`确定要${action}服务"${service.name}"吗？`)) return;
+          
+          try {
+            // 获取环境 ID
+            const environmentId = project.environments && project.environments[0] ? project.environments[0]._id : null;
+            if (!environmentId) {
+              alert('❌ 无法获取环境 ID，请刷新页面后重试');
+              return;
+            }
+            
+            // 获取账号 token
+            const accountData = this.managedAccounts.find(acc => acc.name === account.name);
+            if (!accountData || !accountData.token) {
+              alert('❌ 无法获取账号 token，请重新添加账号');
+              return;
+            }
+            
+            const response = await fetch('/api/service/restart', {
+              method: 'POST',
+              headers: this.getAuthHeaders(),
+              body: JSON.stringify({ 
+                token: accountData.token, 
+                serviceId: service._id,
+                environmentId: environmentId
+              })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+              alert(`✅ 服务已${action}`);
+              this.fetchData();
+            } else {
+              alert(`❌ ${action}失败: ` + (result.error || JSON.stringify(result)));
+            }
+          } catch (error) {
+            alert('❌ 操作失败: ' + error.message);
+          }
+        },
+        // 查看服务日志
+        async showServiceLogs(account, project, service) {
+          this.logsModalTitle = '服务日志 - ' + service.name;
+          this.logsModalInfo = { project: project.name, account: account.name, count: 0, time: new Date().toLocaleString('zh-CN') };
+          this.logsContent = '';
+          this.logsLoading = true;
+          this.showLogsModal = true;
+          
+          try {
+            const environmentId = project.environments && project.environments[0] ? project.environments[0]._id : null;
+            if (!environmentId) { this.logsContent = '❌ 无法获取环境 ID'; this.logsLoading = false; return; }
+            
+            const accountData = this.managedAccounts.find(acc => acc.name === account.name);
+            if (!accountData || !accountData.token) { this.logsContent = '❌ 无法获取账号 token'; this.logsLoading = false; return; }
+            
+            const response = await fetch('/api/service/logs', {
+              method: 'POST',
+              headers: this.getAuthHeaders(),
+              body: JSON.stringify({ token: accountData.token, serviceId: service._id, environmentId: environmentId, projectId: project._id, limit: 200 })
+            });
+            
+            const result = await response.json();
+            if (result.success && result.logs) {
+              this.logsContent = result.logs.map(log => '[' + new Date(log.timestamp).toLocaleString('zh-CN') + '] ' + log.message).join('\n');
+              this.logsModalInfo.count = result.count;
+            } else {
+              this.logsContent = '❌ 获取日志失败: ' + (result.error || '未知错误');
+            }
+          } catch (error) {
+            this.logsContent = '❌ 获取日志失败: ' + error.message;
+          } finally {
+            this.logsLoading = false;
+          }
+        },
+        // 格式化费用显示（小于 $0.01 显示为 $0.01）
+        formatCost(cost) {
+          if (cost > 0 && cost < 0.01) {
+            return '0.01';
+          }
+          return cost.toFixed(2);
+        },
+        // 更新批量添加的打码显示
+        updateBatchDisplay() {
+          if (!this.batchAccounts) {
+            this.maskedBatchAccounts = '';
+            return;
+          }
+          const lines = this.batchAccounts.split('\n');
+          this.maskedBatchAccounts = lines.map(line => {
+            // 尝试匹配括号格式：名称(token) 或 名称（token）
+            const bracketMatch = line.match(/^(.+?)[（(](.+?)[）)]$/);
+            if (bracketMatch) {
+              const name = bracketMatch[1];
+              const bracket = line.includes('（') ? '（' : '(';
+              const closeBracket = line.includes('）') ? '）' : ')';
+              const maskedToken = bracketMatch[2].replace(/./g, '●');
+              return name + bracket + maskedToken + closeBracket;
+            }
+            
+            // 冒号格式
+            let separatorIndex = -1;
+            let separator = '';
+            
+            if (line.includes(':')) {
+              separatorIndex = line.indexOf(':');
+              separator = ':';
+            } else if (line.includes('：')) {
+              separatorIndex = line.indexOf('：');
+              separator = '：';
+            }
+            
+            if (separatorIndex === -1) return line;
+            
+            const name = line.substring(0, separatorIndex);
+            const token = line.substring(separatorIndex + 1);
+            return name + separator + token.replace(/./g, '●');
+          }).join('\n');
+        },
+        // 获取项目的所有域名
+        getProjectDomains(project) {
+          const domains = [];
+          if (project.services) {
+            project.services.forEach(service => {
+              if (service.domains && service.domains.length > 0) {
+                service.domains.forEach(d => {
+                  if (d.domain) {
+                    domains.push({
+                      domain: d.domain,
+                      isGenerated: d.isGenerated || false
+                    });
+                  }
+                });
+              }
+            });
+          }
+          return domains;
+        },
+        // 开始编辑项目名称
+        startEditProjectName(project) {
+          project.isEditing = true;
+          project.editingName = project.name;
+          setTimeout(() => {
+            const inputs = document.querySelectorAll('input[type="text"]');
+            const lastInput = inputs[inputs.length - 1];
+            if (lastInput) lastInput.focus();
+          }, 50);
+        },
+        // 取消编辑项目名称
+        cancelEditProjectName(project) {
+          project.isEditing = false;
+          project.editingName = '';
+        },
+        // 保存项目名称
+        async saveProjectName(account, project) {
+          // 如果不在编辑状态，直接返回（避免 blur 事件重复触发）
+          if (!project.isEditing) {
+            return;
+          }
+          
+          if (!project.editingName || project.editingName.trim() === '') {
+            alert('❌ 项目名称不能为空');
+            return;
+          }
+          
+          if (project.editingName === project.name) {
+            this.cancelEditProjectName(project);
+            return;
+          }
+          
+          try {
+            const accountData = this.managedAccounts.find(acc => acc.name === account.name);
+            if (!accountData) {
+              alert('❌ 无法找到账号信息，请重新添加账号');
+              return;
+            }
+            
+            const response = await fetch('/api/project/rename', {
+              method: 'POST',
+              headers: this.getAuthHeaders(),
+              body: JSON.stringify({ 
+                accountId: accountData.id || accountData.name,
+                projectId: project._id,
+                newName: project.editingName.trim()
+              })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+              project.name = project.editingName.trim();
+              this.cancelEditProjectName(project);
+              alert('✅ 项目名称已更新');
+            } else {
+              alert('❌ 更新失败: ' + (result.error || '未知错误'));
+            }
+          } catch (error) {
+            alert('❌ 操作失败: ' + error.message);
+          }
+        },
+        // 获取版本信息
+        // 复制加密密钥到剪贴板
+        async copySecret() {
+          try {
+            await navigator.clipboard.writeText(this.suggestedSecret);
+            alert('密钥已复制到剪贴板!请按照步骤设置后刷新页面。');
+          } catch (error) {
+            // 降级方案
+            const textArea = document.createElement('textarea');
+            textArea.value = this.suggestedSecret;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('密钥已复制到剪贴板!请按照步骤设置后刷新页面。');
+          }
+        },
+        async fetchVersionInfo() {
+          try {
+            console.log('开始获取版本信息...');
+            const [currentRes, latestRes] = await Promise.all([
+              fetch('/api/version'),
+              fetch('/api/latest-version')
+            ]);
+            
+            const current = await currentRes.json();
+            const latest = await latestRes.json();
+            
+            console.log('当前版本:', current.version);
+            console.log('最新版本:', latest.version);
+            
+            this.currentVersion = current.version || '--';
+            this.latestVersion = latest.version || '--';
+            this.versionLoading = false;
+          } catch (error) {
+            console.error('获取版本信息失败:', error);
+            this.currentVersion = '--';
+            this.latestVersion = '--';
+            this.versionLoading = false;
+          }
+        },
+        // 比较版本号
+        isNewVersionAvailable() {
+          if (this.currentVersion === '--' || this.latestVersion === '--' || 
+              this.currentVersion === '加载中...' || this.latestVersion === '加载中...') {
+            return false;
+          }
+          
+          const parseCurrent = this.currentVersion.split('.').map(Number);
+          const parseLatest = this.latestVersion.split('.').map(Number);
+          
+          for (let i = 0; i < 3; i++) {
+            const current = parseCurrent[i] || 0;
+            const latest = parseLatest[i] || 0;
+            
+            if (latest > current) {
+              return true;
+            } else if (latest < current) {
+              return false;
+            }
+          }
+          
+          return false;
+        }
+      }
+    }).mount('#app');
+  </script>
+
+</body>
+</html>
